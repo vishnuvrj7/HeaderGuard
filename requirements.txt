@@ -1,0 +1,5 @@
+requests
+argparse
+dataclasses
+typing
+concurrent.futures
