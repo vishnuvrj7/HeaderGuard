@@ -10,13 +10,31 @@ import concurrent.futures
 import sys
 import time
 
+def display_banner():
+
+    banner = """
+██╗   ██╗██████╗      ██╗
+██║   ██║██╔══██╗     ██║
+██║   ██║██████╔╝     ██║
+╚██╗ ██╔╝██╔══██╗██   ██║
+ ╚████╔╝ ██║  ██║╚█████╔╝
+  ╚═══╝  ╚═╝  ╚═╝ ╚════╝ 
+                         
+HeaderGuard - A Web Security Scanner
+    """
+    print(banner)
+    print("=" * 60)
+    print("  Lightweight scanner for missing security headers")
+    print("=" * 60)
+    print()
+
 @dataclass
 class SecurityCheck:
-    
+
     header: str
     present: bool
     value: Optional[str]
-    severity: str
+    severity: str 
     description: str
     remediation: str
     references: List[str]
@@ -36,11 +54,11 @@ class WebSecurityScanner:
     
     def __init__(self, timeout: int = 10, user_agent: str = None):
         self.timeout = timeout
-        self.user_agent = user_agent or "WebSecurityScanner/1.0"
+        self.user_agent = user_agent or "HeaderGuard/1.0"
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': self.user_agent})
         
-       
+        # Define security headers to check
         self.security_headers = {
             'strict-transport-security': {
                 'severity': 'high',
@@ -99,18 +117,19 @@ class WebSecurityScanner:
         }
 
     def scan_url(self, url: str) -> ScanResult:
-                try:
-           
+
+        try:
+
             if not url.startswith(('http://', 'https://')):
                 url = 'https://' + url
             
             print(f"Scanning: {url}")
             
-            
+
             response = self.session.get(url, timeout=self.timeout, allow_redirects=True)
             headers = {k.lower(): v for k, v in response.headers.items()}
             
-           
+
             checks = []
             for header, config in self.security_headers.items():
                 present = header in headers
@@ -127,7 +146,7 @@ class WebSecurityScanner:
                 )
                 checks.append(check)
             
-            
+
             score, risk_level = self._calculate_score(checks)
             
             return ScanResult(
@@ -151,7 +170,7 @@ class WebSecurityScanner:
             )
 
     def _calculate_score(self, checks: List[SecurityCheck]) -> Tuple[int, str]:
-        
+        """Calculate overall security score and risk level"""
         severity_weights = {
             'critical': 25,
             'high': 20,
@@ -176,7 +195,8 @@ class WebSecurityScanner:
         return score, risk_level
 
     def scan_multiple_urls(self, urls: List[str], max_workers: int = 5) -> List[ScanResult]:
-                results = []
+        """Scan multiple URLs concurrently"""
+        results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_url = {executor.submit(self.scan_url, url): url for url in urls}
             
@@ -198,10 +218,10 @@ class WebSecurityScanner:
             raise ValueError(f"Unsupported format: {format_type}")
 
     def _generate_console_report(self, results: List[ScanResult]) -> str:
-        """Generate console-friendly report"""
+
         report = []
         report.append("=" * 80)
-        report.append("WEB SECURITY SCANNER REPORT")
+        report.append("HEADERGUARD SECURITY REPORT")
         report.append("=" * 80)
         report.append(f"Scan completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report.append(f"Total URLs scanned: {len(results)}")
@@ -225,7 +245,7 @@ class WebSecurityScanner:
             report.append(f"   Status: {result.status_code}")
             report.append("")
             
-            
+  
             missing_headers = [check for check in result.checks if not check.present]
             present_headers = [check for check in result.checks if check.present]
             
@@ -250,18 +270,19 @@ class WebSecurityScanner:
         return "\n".join(report)
 
     def _generate_json_report(self, results: List[ScanResult]) -> str:
-                return json.dumps([asdict(result) for result in results], indent=2, default=str)
+
+        return json.dumps([asdict(result) for result in results], indent=2, default=str)
 
     def _generate_csv_report(self, results: List[ScanResult]) -> str:
-        
+
         import io
         output = io.StringIO()
         writer = csv.writer(output)
         
-        
+    
         writer.writerow(['URL', 'Status Code', 'Overall Score', 'Risk Level', 'Header', 'Present', 'Value', 'Severity'])
         
-        
+        # Write data
         for result in results:
             for check in result.checks:
                 writer.writerow([
@@ -278,7 +299,10 @@ class WebSecurityScanner:
         return output.getvalue()
 
 def main():
-    parser = argparse.ArgumentParser(description="Web Security Scanner - Scan websites for missing security headers")
+ 
+    display_banner()
+    
+    parser = argparse.ArgumentParser(description="HeaderGuard - Scan websites for missing security headers")
     parser.add_argument('urls', nargs='+', help='URLs to scan')
     parser.add_argument('--timeout', type=int, default=10, help='Request timeout in seconds (default: 10)')
     parser.add_argument('--format', choices=['console', 'json', 'csv'], default='console', help='Output format (default: console)')
@@ -288,10 +312,10 @@ def main():
     
     args = parser.parse_args()
     
-  
+
     scanner = WebSecurityScanner(timeout=args.timeout, user_agent=args.user_agent)
     
-   
+
     print(f"Starting scan of {len(args.urls)} URL(s)...")
     start_time = time.time()
     
@@ -303,10 +327,10 @@ def main():
     end_time = time.time()
     print(f"Scan completed in {end_time - start_time:.2f} seconds")
     
-    # Generate report
+
     report = scanner.generate_report(results, format_type=args.format)
     
-    # Output report
+
     if args.output:
         with open(args.output, 'w') as f:
             f.write(report)
